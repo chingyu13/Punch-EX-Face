@@ -292,8 +292,29 @@
     hideArrow();
     if (state.mode === 'IDLE') state.mode = 'MOVING_PUNCH';
   }
+  function onPointerDown(ev) {
+    onPointer(ev);
+    const p = toSvg(ev.clientX, ev.clientY);
+    if (!p) return;
+
+    // A direct click on the lower-right cheek is a punch too. This uses the
+    // same jaw capsule as swipe hits, but tests the cursor itself so repeated
+    // clicks do not require artificial pointer movement.
+    const clickedRightCheek =
+      p.x > FACE_C.x &&
+      p.y > FACE_C.y &&
+      distToSeg(p, CAP_A, CAP_B) < R_OUT;
+    if (!clickedRightCheek) return;
+
+    if (state.mode === 'IMPACT') {
+      impactAt = performance.now();
+      registerPunch();
+    } else {
+      enterImpact();
+    }
+  }
   window.addEventListener('pointermove', onPointer);
-  window.addEventListener('pointerdown', onPointer);
+  window.addEventListener('pointerdown', onPointerDown);
   window.addEventListener('pointerup', () => { state.lastInteractionTime = Date.now(); });
   window.addEventListener('pointerleave', () => {
     state.lastInteractionTime = Date.now();
