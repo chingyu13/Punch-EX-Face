@@ -121,7 +121,7 @@
 		</g>
 	</g>
 <text id="name-label" x="-687.8" y="-160" text-anchor="middle"
- font-family="'Snowburst One', Cause, cursive" font-size="96" font-weight="400" fill="#0A0A0A"></text>
+ font-family="'Snowburst One', Cause, cursive" font-size="64" font-weight="700" fill="#0A0A0A"></text>
 </svg>
   </div>
 
@@ -214,7 +214,8 @@
     mode: 'IDLE', // IDLE | MOVING_PUNCH | IMPACT
     isPunching: false,
     hasUserInteracted: false,
-    lastInteractionTime: Date.now()
+    lastInteractionTime: Date.now(),
+    punchCount: 0
   };
   const target = { x:HOME.x, y:HOME.y };
   const fist   = { x:HOME.x, y:HOME.y };
@@ -223,6 +224,38 @@
   let prevP = null;
   let lastSwipeOk = false;
   const FLYBY_HOLD_MS = 300;
+
+  /* Name / punch counter label */
+  const nameLabel = document.getElementById('name-label');
+  let labelSubject = 'He';
+  {
+    const raw = location.search.replace(/^\?=?/, '').split('&')[0] || '';
+    let name = raw;
+    try { name = decodeURIComponent(raw); } catch (e) { /* keep raw */ }
+    name = name.trim();
+    if (name) {
+      name = name.charAt(0).toUpperCase() + name.slice(1);
+      labelSubject = name;
+    }
+  }
+  function updatePunchLabel() {
+    if (!nameLabel) return;
+    nameLabel.textContent = labelSubject + ' deserves ' + state.punchCount + ' punches';
+  }
+  let lastPunchAt = 0;
+  function registerPunch() {
+    const now = performance.now();
+    if (now - lastPunchAt < 120) return; // debounce pointer + fist sweep double-fire
+    const rapid = lastPunchAt > 0 && (now - lastPunchAt) < 380;
+    lastPunchAt = now;
+    state.punchCount += 1;
+    updatePunchLabel();
+    // Retrigger face squash so rapid hits stay visible
+    if (t > 0.3) t = 0.15;
+    if (rapid && flybyUntil > now) flybyUntil = now + 50;
+  }
+  updatePunchLabel();
+
 
   function toSvg(cx, cy) {
     const m = svg.getScreenCTM();
@@ -247,7 +280,7 @@
         if (distToSeg(b, CAP_A, CAP_B) < R_IN) {
           enterImpact();
         } else {
-          flybyUntil = performance.now() + FLYBY_HOLD_MS;
+          flybyUntil = performance.now() + ((lastPunchAt > 0 && performance.now() - lastPunchAt < 380) ? 70 : FLYBY_HOLD_MS); registerPunch();
         }
       }
     }
@@ -270,6 +303,7 @@
   function enterImpact() {
     state.mode = 'IMPACT'; state.isPunching = true;
     impactAt = performance.now();
+    registerPunch();
   }
   function leaveImpact() {
     state.mode = 'MOVING_PUNCH'; state.isPunching = false;
@@ -290,7 +324,7 @@
       if (distToSeg(fistStrike, CAP_A, CAP_B) < R_IN) {
         enterImpact();
       } else {
-        flybyUntil = performance.now() + FLYBY_HOLD_MS;
+        flybyUntil = performance.now() + ((lastPunchAt > 0 && performance.now() - lastPunchAt < 380) ? 70 : FLYBY_HOLD_MS); registerPunch();
       }
     } else if (state.mode === 'IMPACT' && distToSeg(targetStrike, CAP_A, CAP_B) > R_OUT) {
       leaveImpact();
@@ -312,25 +346,18 @@
     punch.setAttribute('transform',
       `translate(${(fist.x - INDEX.x).toFixed(2)} ${(fist.y - INDEX.y).toFixed(2)})`);
 
-    // Morph toward punched (1) on impact/flyby, else rest (0)
+    // Morph toward punched (1) on impact/flyby, else rest (0).
+    // Rapid punches use faster in/out so the face keeps bouncing.
     const T = (state.mode === 'IMPACT' || now < flybyUntil) ? 1 : 0;
-    const step = dt / MORPH_MS;
+    const rapidMorph = lastPunchAt > 0 && (now - lastPunchAt) < 420;
+    const morphMs = T > t ? (rapidMorph ? 70 : MORPH_MS) : (rapidMorph ? 55 : MORPH_MS);
+    const step = dt / morphMs;
     t = T > t ? Math.min(T, t + step) : Math.max(T, t - step);
     applyMorph(t);
 
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
-
-  /* Name label from URL query */
-  const nameLabel = document.getElementById('name-label');
-  if (nameLabel) {
-    const raw = location.search.replace(/^\?=?/, '').split('&')[0] || '';
-    let name = raw;
-    try { name = decodeURIComponent(raw); } catch (e) { /* keep raw */ }
-    if (name) name = name.charAt(0).toUpperCase() + name.slice(1);
-    nameLabel.textContent = name;
-  }
 
   /* Background thumb-downs */
   const bgThumbs = document.getElementById('bg-thumbs');
