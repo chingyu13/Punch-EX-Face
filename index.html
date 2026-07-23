@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Punch Face — 戳他 / 揍他</title>
+<style>
+  :root { --bg:#0e0f13; --ink:#e8e8ea; --muted:#8a8f9c; --accent:#ffcf33; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; }
+  body {
+    background: radial-gradient(1200px 600px at 50% -10%, #1c2030, var(--bg));
+    color:var(--ink);
+    font-family:-apple-system,"PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:100%; gap:20px; padding:24px; user-select:none; overflow:hidden;
+  }
+  h1 { font-size:18px; font-weight:800; letter-spacing:2px; margin:0; }
+  .hint { color:var(--muted); font-size:13px; text-align:center; line-height:1.7; max-width:440px; }
+  .hint b { color:var(--accent); }
+
+  .stage { position:relative; width:360px; height:360px; display:flex; align-items:center; justify-content:center; }
+  .face-wrap { width:320px; height:320px; will-change:transform; filter:drop-shadow(0 22px 36px rgba(0,0,0,.5)); }
+  .face-wrap svg { width:100%; height:100%; display:block; overflow:visible; }
+
+  /* deformation origins */
+  #squash, #features { transform-box:fill-box; transform-origin:center; }
+
+  /* expression states */
+  .eyes-hurt, .mouth-hurt { display:none; }
+  #facesvg.hurt .eyes-normal, #facesvg.hurt .mouth-normal { display:none; }
+  #facesvg.hurt .eyes-hurt,  #facesvg.hurt .mouth-hurt  { display:inline; }
+
+  /* FX layer */
+  .fx { position:absolute; inset:0; pointer-events:none; overflow:visible; }
+  .comic {
+    position:absolute; font-weight:900; font-style:italic; color:#fff; white-space:nowrap;
+    -webkit-text-stroke:2px #000; text-shadow:3px 3px 0 #ff2d55; letter-spacing:1px;
+  }
+  .flash {
+    position:absolute; width:20px; height:20px; border-radius:50%;
+    transform:translate(-50%,-50%) scale(0); mix-blend-mode:screen;
+    background:radial-gradient(circle,#fff 0%,#ffe27a 35%,rgba(255,180,0,0) 70%);
+  }
+  .hand { position:absolute; left:0; top:0; font-size:64px; filter:drop-shadow(0 4px 6px rgba(0,0,0,.45)); }
+  .mark {
+    position:absolute; width:52px; height:52px; border-radius:50%;
+    transform:translate(-50%,-50%) scale(0); mix-blend-mode:multiply;
+    background:radial-gradient(circle,rgba(150,20,45,.9) 0%,rgba(150,20,45,.3) 45%,rgba(150,20,45,0) 70%);
+  }
+  .line { position:absolute; height:4px; border-radius:4px; background:#fff; transform-origin:0 50%; }
+  .star { position:absolute; left:0; top:0; font-size:26px; }
+  .counter { color:var(--muted); font-size:13px; }
+  .counter b { color:var(--ink); font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+  <h1>PUNCH&nbsp;FACE</h1>
+  <div class="hint">
+    游標<b>慢慢</b>靠上去 → 戳一下。<b>快速</b>甩過去或直接點一下 → 從那個方向揍下去。<br/>
+    臉會真的凹陷變形、五官甩歪、冒金星，還會留下瘀青。
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="face-wrap" id="face">
+      <svg id="facesvg" viewBox="0 0 360 360" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <!-- A: real flesh/jelly warp -->
+          <filter id="warp" x="-40%" y="-40%" width="180%" height="180%">
+            <feTurbulence id="turb" type="fractalNoise" baseFrequency="0.014" numOctaves="2" seed="4" result="n"/>
+            <feDisplacementMap id="disp" in="SourceGraphic" in2="n" scale="0" xChannelSelector="R" yChannelSelector="G"/>
+          </filter>
+        </defs>
+
+        <g filter="url(#warp)">
+          <g id="squash">
+            <!-- ears -->
+            <ellipse cx="58" cy="188" rx="17" ry="27" fill="#ffcc8f" stroke="#2b2016" stroke-width="6"/>
+            <ellipse cx="302" cy="188" rx="17" ry="27" fill="#ffcc8f" stroke="#2b2016" stroke-width="6"/>
+            <!-- head -->
+            <ellipse cx="180" cy="182" rx="122" ry="130" fill="#ffcc8f" stroke="#2b2016" stroke-width="6"/>
+            <!-- hair -->
+            <path d="M62 128 Q66 54 180 48 Q294 54 298 128 Q250 92 180 88 Q110 92 62 128 Z" fill="#4a2f1c"/>
+            <!-- cheeks -->
+            <circle cx="112" cy="212" r="16" fill="#ff9a8b" opacity=".55"/>
+            <circle cx="248" cy="212" r="16" fill="#ff9a8b" opacity=".55"/>
+            <!-- nose -->
+            <path d="M180 178 Q198 206 180 218 Q162 206 180 178 Z" fill="#f0b072"/>
+
+            <g id="features">
+              <!-- brows -->
+              <path d="M118 138 Q145 124 174 136" fill="none" stroke="#2b2016" stroke-width="11" stroke-linecap="round"/>
+              <path d="M186 136 Q215 124 242 138" fill="none" stroke="#2b2016" stroke-width="11" stroke-linecap="round"/>
+
+              <!-- eyes: normal -->
+              <g class="eyes-normal">
+                <ellipse cx="140" cy="170" rx="25" ry="29" fill="#fff" stroke="#2b2016" stroke-width="4"/>
+                <ellipse cx="220" cy="170" rx="25" ry="29" fill="#fff" stroke="#2b2016" stroke-width="4"/>
+                <circle cx="146" cy="176" r="11" fill="#2b2016"/>
+                <circle cx="226" cy="176" r="11" fill="#2b2016"/>
+                <circle cx="142" cy="171" r="3.5" fill="#fff"/>
+                <circle cx="222" cy="171" r="3.5" fill="#fff"/>
+              </g>
+              <!-- eyes: hurt (X_X) -->
+              <g class="eyes-hurt" stroke="#2b2016" stroke-width="9" stroke-linecap="round">
+                <line x1="123" y1="153" x2="157" y2="187"/><line x1="157" y1="153" x2="123" y2="187"/>
+                <line x1="203" y1="153" x2="237" y2="187"/><line x1="237" y1="153" x2="203" y2="187"/>
+              </g>
+
+              <!-- mouth: normal -->
+              <g class="mouth-normal">
+                <path d="M148 240 Q180 264 212 240" fill="none" stroke="#2b2016" stroke-width="8" stroke-linecap="round"/>
+              </g>
+              <!-- mouth: hurt (ow) -->
+              <g class="mouth-hurt">
+                <ellipse cx="180" cy="248" rx="27" ry="22" fill="#7a2e2e" stroke="#2b2016" stroke-width="6"/>
+                <path d="M162 258 Q180 268 198 258 L198 264 Q180 272 162 264 Z" fill="#ff6b6b"/>
+              </g>
+            </g>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <div class="fx" id="fx"></div>
+  </div>
+
+  <div class="counter">被打次數：<b id="count">0</b></div>
+
+<script>
+(() => {
+  const stage=document.getElementById('stage');
+  const face =document.getElementById('face');
+  const svg  =document.getElementById('facesvg');
+  const squash=document.getElementById('squash');
+  const feats =document.getElementById('features');
+  const disp =document.getElementById('disp');
+  const turb =document.getElementById('turb');
+  const fx   =document.getElementById('fx');
+  const countEl=document.getElementById('count');
+
+  const PUNCH_SPEED=1.15, COOLDOWN=380;
+  let hits=0, lastTime=0, lastReact=0, hurtTimer=0;
+  let px=0, py=0, vx=0, vy=0, inside=false;
+
+  const rand=(a,b)=>a+Math.random()*(b-a);
+  const DEG=180/Math.PI;
+
+  function faceCircle(){ const r=face.getBoundingClientRect();
+    return {cx:r.left+r.width/2, cy:r.top+r.height/2, R:r.width*0.5}; }
+  function toLocal(cx,cy){ const s=stage.getBoundingClientRect(); return {x:cx-s.left,y:cy-s.top}; }
+
+  window.addEventListener('pointermove',(e)=>{
+    const now=performance.now(), dt=Math.max(1,now-lastTime);
+    vx=(e.clientX-px)/dt; vy=(e.clientY-py)/dt;
+    px=e.clientX; py=e.clientY; lastTime=now;
+    const {cx,cy,R}=faceCircle();
+    const nowInside=Math.hypot(e.clientX-cx,e.clientY-cy)<R*0.9;
+    if(nowInside&&!inside){
+      inside=true;
+      const speed=Math.hypot(vx,vy);
+      let ang=(speed>0.05)?Math.atan2(vy,vx):Math.atan2(cy-e.clientY,cx-e.clientX);
+      react(speed>=PUNCH_SPEED?'punch':'poke',ang,e.clientX,e.clientY);
+    } else if(!nowInside&&inside){ inside=false; }
+  });
+
+  stage.addEventListener('pointerdown',(e)=>{
+    const {cx,cy}=faceCircle(); const speed=Math.hypot(vx,vy);
+    let ang=(speed>0.05)?Math.atan2(vy,vx):Math.atan2(cy-e.clientY,cx-e.clientX);
+    react('punch',ang,e.clientX,e.clientY);
+  });
+
+  function react(type,ang,clientX,clientY){
+    const now=performance.now();
+    if(now-lastReact<COOLDOWN) return;
+    lastReact=now;
+    const dx=Math.cos(ang), dy=Math.sin(ang), {x,y}=toLocal(clientX,clientY);
+    hits++; countEl.textContent=hits;
+    (type==='poke')?doPoke(dx,dy,x,y,ang):doPunch(dx,dy,x,y,ang);
+  }
+
+  /* ---- animate an SVG filter attribute over time (for the jelly warp) ---- */
+  function warpHit(strength,dur){
+    turb.setAttribute('seed',(Math.random()*90|0));
+    const t0=performance.now();
+    (function loop(now){
+      const p=Math.min(1,(now-t0)/dur);
+      const s=strength*Math.exp(-3.4*p)*Math.cos(11*p); // jelly ripple that decays
+      disp.setAttribute('scale',s.toFixed(2));
+      if(p<1) requestAnimationFrame(loop); else disp.setAttribute('scale','0');
+    })(t0);
+  }
+
+  /* ---------- POKE ---------- */
+  function doPoke(dx,dy,x,y,ang){
+    face.animate([
+      {transform:'translate(0,0)'},
+      {transform:`translate(${dx*14}px,${dy*14}px)`,offset:.28},
+      {transform:`translate(${dx*-4}px,${dy*-4}px)`,offset:.6},
+      {transform:'translate(0,0)'}
+    ],{duration:420,easing:'cubic-bezier(.34,1.56,.64,1)'});
+
+    const A=ang*DEG;
+    squash.animate([
+      {transform:'scale(1,1)'},
+      {transform:`rotate(${A}deg) scale(.9,1.06) rotate(${-A}deg)`,offset:.28},
+      {transform:'scale(1,1)'}
+    ],{duration:420,easing:'cubic-bezier(.34,1.56,.64,1)'});
+
+    warpHit(9,360);
+
+    const hand=mkHand('👉'), back=44;
+    hand.animate([
+      {transform:handT(x-dx*back,y-dy*back,ang,.3),opacity:0},
+      {transform:handT(x-dx*8, y-dy*8, ang,1), opacity:1,offset:.45},
+      {transform:handT(x-dx*back,y-dy*back,ang,.9),opacity:0}
+    ],{duration:340,easing:'ease-out'}).onfinish=()=>hand.remove();
+  }
+
+  /* ---------- PUNCH ---------- */
+  function doPunch(dx,dy,x,y,ang){
+    const p=72, A=ang*DEG, spin=15*(dx>=0?1:-1);
+
+    // whole-head knockback
+    face.animate([
+      {transform:'translate(0,0) rotate(0deg)'},
+      {transform:`translate(${dx*p}px,${dy*p}px) rotate(${spin}deg)`,offset:.18,easing:'cubic-bezier(.2,.9,.3,1)'},
+      {transform:`translate(${dx*-p*0.28}px,${dy*-p*0.28}px) rotate(${-spin*0.5}deg)`,offset:.46},
+      {transform:`translate(${dx*p*0.1}px,${dy*p*0.1}px) rotate(${spin*0.2}deg)`,offset:.72},
+      {transform:'translate(0,0) rotate(0deg)'}
+    ],{duration:640,easing:'cubic-bezier(.34,1.4,.5,1)'});
+
+    // face squashes along the impact axis
+    squash.animate([
+      {transform:'scale(1,1)'},
+      {transform:`rotate(${A}deg) scale(.68,1.2) rotate(${-A}deg)`,offset:.16,easing:'cubic-bezier(.2,.9,.3,1)'},
+      {transform:`rotate(${A}deg) scale(1.14,.88) rotate(${-A}deg)`,offset:.42},
+      {transform:`rotate(${A}deg) scale(.95,1.04) rotate(${-A}deg)`,offset:.68},
+      {transform:'scale(1,1)'}
+    ],{duration:660,easing:'cubic-bezier(.34,1.4,.5,1)'});
+
+    // features slide toward impact and lag behind
+    feats.animate([
+      {transform:'translate(0,0) rotate(0deg)'},
+      {transform:`translate(${dx*16}px,${dy*16}px) rotate(${spin*0.5}deg)`,offset:.22},
+      {transform:`translate(${dx*-6}px,${dy*-6}px) rotate(${-spin*0.25}deg)`,offset:.55},
+      {transform:'translate(0,0) rotate(0deg)'}
+    ],{duration:700,easing:'cubic-bezier(.34,1.5,.5,1)'});
+
+    // real jelly flesh warp
+    warpHit(34,560);
+
+    // hurt expression for a moment
+    svg.classList.add('hurt');
+    clearTimeout(hurtTimer);
+    hurtTimer=setTimeout(()=>svg.classList.remove('hurt'),620);
+
+    // screen shake
+    const sh=[]; for(let i=0;i<8;i++) sh.push({transform:`translate(${rand(-9,9)}px,${rand(-9,9)}px)`});
+    sh.push({transform:'translate(0,0)'});
+    stage.animate(sh,{duration:300,easing:'ease-out'});
+
+    // fist flies in
+    const hand=mkHand('👊'), back=120;
+    hand.animate([
+      {transform:handT(x-dx*back,y-dy*back,ang,.4),opacity:0},
+      {transform:handT(x-dx*6, y-dy*6, ang,1.15),opacity:1,offset:.35},
+      {transform:handT(x-dx*back,y-dy*back,ang,.9),opacity:0}
+    ],{duration:420,easing:'cubic-bezier(.4,0,.2,1)'}).onfinish=()=>hand.remove();
+
+    // impact flash
+    const flash=el('flash',x,y);
+    flash.animate([
+      {transform:'translate(-50%,-50%) scale(0)',opacity:1},
+      {transform:'translate(-50%,-50%) scale(9)',opacity:0}
+    ],{duration:340,easing:'ease-out'}).onfinish=()=>flash.remove();
+
+    // comic word
+    const words=['POW!','BAM!','BONK!','WHAM!','KA-POW!','BANG!'];
+    const c=el('comic',x+rand(-14,14),y-rand(34,64));
+    c.style.fontSize=rand(30,42)+'px';
+    c.textContent=words[(Math.random()*words.length)|0];
+    const bT=`translate(-50%,-50%) rotate(${rand(-14,14)}deg)`;
+    c.animate([
+      {transform:bT+' scale(0)',opacity:0},
+      {transform:bT+' scale(1.15)',opacity:1,offset:.3},
+      {transform:bT+' scale(1)',opacity:1,offset:.7},
+      {transform:bT+' scale(1)',opacity:0}
+    ],{duration:640,easing:'cubic-bezier(.34,1.56,.64,1)'}).onfinish=()=>c.remove();
+
+    // motion lines
+    for(let i=0;i<9;i++){
+      const a=ang+Math.PI+rand(-.9,.9)+(i-4)*0.14, len=rand(26,54);
+      const line=document.createElement('div'); line.className='line';
+      line.style.left=x+'px'; line.style.top=y+'px'; line.style.width=len+'px';
+      fx.appendChild(line);
+      line.animate([
+        {transform:`translateY(-50%) rotate(${a}rad) scaleX(0)`,opacity:.9},
+        {transform:`translateY(-50%) rotate(${a}rad) scaleX(1)`,opacity:.9,offset:.5},
+        {transform:`translateY(-50%) rotate(${a}rad) scaleX(1) translateX(10px)`,opacity:0}
+      ],{duration:360,easing:'ease-out'}).onfinish=()=>line.remove();
+    }
+
+    // dizzy stars orbiting the head top
+    const s=stage.getBoundingClientRect(), topx=s.width/2, topy=s.height*0.16;
+    for(let i=0;i<3;i++){
+      const star=document.createElement('div'); star.className='star';
+      star.textContent='💫'; fx.appendChild(star);
+      const base=i*(Math.PI*2/3);
+      star.animate(
+        Array.from({length:13},(_,k)=>{
+          const th=base+k/12*Math.PI*2, rx=34, ry=12;
+          return {transform:`translate(${topx+Math.cos(th)*rx-13}px,${topy+Math.sin(th)*ry-13}px) scale(${k<2?0:1})`,
+                  opacity:k<1?0:(k>10?0:1)};
+        }),{duration:900,easing:'linear'}).onfinish=()=>star.remove();
+    }
+
+    // lingering bruise
+    const mark=el('mark',x,y);
+    mark.animate([
+      {transform:'translate(-50%,-50%) scale(0)',opacity:0},
+      {transform:'translate(-50%,-50%) scale(1)',opacity:1,offset:.2},
+      {transform:'translate(-50%,-50%) scale(1.1)',opacity:0}
+    ],{duration:1200,easing:'ease-out'}).onfinish=()=>mark.remove();
+  }
+
+  /* ---- helpers ---- */
+  function el(cls,x,y){ const d=document.createElement('div'); d.className=cls;
+    d.style.left=x+'px'; d.style.top=y+'px'; fx.appendChild(d); return d; }
+  function mkHand(emoji){ const d=document.createElement('div'); d.className='hand';
+    d.textContent=emoji; fx.appendChild(d); return d; }
+  function handT(lx,ly,ang,s){ return `translate(${lx}px,${ly}px) translate(-50%,-50%) rotate(${ang}rad) scale(${s})`; }
+})();
+</script>
+</body>
+</html>
