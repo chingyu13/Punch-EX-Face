@@ -163,7 +163,8 @@
   const PUSH       = { x:-12, y:-6, ms:130 };
   // hit 區:右耳下方 → 下巴 的膠囊(線段 + 半徑),含遲滯
   const CAP_A = { x:-425, y:585 }, CAP_B = { x:-645, y:805 };
-  const R_IN = 95, R_OUT = 140;
+  const R_IN = 120, R_OUT = 170;   // hitbox 放大 25px
+  const R_SWEEP = 150;             // 掃掠(快速穿越)判定半徑
   const MORPH_MS = 180;                        // 全程 normal→rp;中點即 middle
 
   function distToSeg(p, a, b) {
@@ -220,7 +221,7 @@
       if (dx * dx + dy * dy > 1) lastSwipeOk = isPunchAngle(dx, dy);
       const a = { x:prevP.x + STRIKE_OFF.x, y:prevP.y + STRIKE_OFF.y };
       const b = { x:p.x     + STRIKE_OFF.x, y:p.y     + STRIKE_OFF.y };
-      if (lastSwipeOk && segSegDist(a, b, CAP_A, CAP_B) < R_IN && state.mode !== 'IMPACT') {
+      if (lastSwipeOk && segSegDist(a, b, CAP_A, CAP_B) < R_SWEEP && state.mode !== 'IMPACT') {
         if (distToSeg(b, CAP_A, CAP_B) < R_IN) {
           enterImpact();                        // 停在區域內 → 一般命中(吸附)
         } else {
@@ -255,17 +256,25 @@
 
   /* ============ 主迴圈 ============ */
   let prevT = performance.now();
+  let prevFistStrike = null;
   function tick(now) {
     const dt = Math.min(64, now - prevT); prevT = now;
 
     const fistStrike   = { x:fist.x   + STRIKE_OFF.x, y:fist.y   + STRIKE_OFF.y };
     const targetStrike = { x:target.x + STRIKE_OFF.x, y:target.y + STRIKE_OFF.y };
 
-    if (state.mode !== 'IMPACT' && lastSwipeOk && state.hasUserInteracted && distToSeg(fistStrike, CAP_A, CAP_B) < R_IN) {
-      enterImpact();
+    // Sweep collision:上一幀拳頭位置 → 目前拳頭位置 的線段 vs hitbox(快速移動不跳格)
+    if (state.mode !== 'IMPACT' && lastSwipeOk && state.hasUserInteracted && prevFistStrike &&
+        segSegDist(prevFistStrike, fistStrike, CAP_A, CAP_B) < R_IN) {
+      if (distToSeg(fistStrike, CAP_A, CAP_B) < R_IN) {
+        enterImpact();
+      } else {
+        flybyUntil = performance.now() + FLYBY_HOLD_MS;
+      }
     } else if (state.mode === 'IMPACT' && distToSeg(targetStrike, CAP_A, CAP_B) > R_OUT) {
       leaveImpact();
     }
+    prevFistStrike = fistStrike;
 
     // 拳頭目標:命中時吸附到原畫位置(初段多推一點)
     let gx, gy;
